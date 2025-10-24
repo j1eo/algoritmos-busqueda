@@ -20,11 +20,10 @@ if uploaded_file:
 
     cols = edited_df.columns.tolist()
     col_x = st.selectbox("Columna X", cols)
-    col_y = st.selectbox("Columna Y", cols, index=1) 
+    col_y = st.selectbox("Columna Y", cols, index=1)
 
     test_size_slider = st.slider("Proporción de test", 0.1, 0.9, 0.3, 0.05)
 
-  
     if st.button("Entrenar"):
         X = edited_df[[col_x]]
         y = edited_df[col_y]
@@ -36,18 +35,15 @@ if uploaded_file:
         model = LinearRegression().fit(X_train, y_train)
         y_pred = model.predict(X_test)
 
-        # Guardar estado
         st.session_state.model = model
         st.session_state.col_x = col_x
         st.session_state.col_y = col_y
         st.session_state.edited_df = edited_df
 
-       
         grid = pd.DataFrame({col_x: np.linspace(X[col_x].min(), X[col_x].max(), 100)})
         grid[col_y] = model.predict(grid[[col_x]])
         st.session_state.grid = grid
 
-        
         st.write("Resultados")
         st.table({
             "Pendiente (a)": [float(model.coef_[0])],
@@ -56,16 +52,35 @@ if uploaded_file:
             "MSE": [float(mean_squared_error(y_test, y_pred))]
         })
 
-        
-        scatter = alt.Chart(edited_df).mark_circle(size=50, opacity=0.6).encode(
-            x=alt.X(col_x, title=col_x),
-            y=alt.Y(col_y, title=col_y),
-            tooltip=[col_x, col_y]
+        domain = ["Datos reales", "Línea de regresión"]
+        colors = ["#1f77b4", "#e74c3c"]
+
+        scatter = (
+            alt.Chart(edited_df)
+            .transform_calculate(key="'Datos reales'")
+            .mark_circle(size=50, opacity=0.6)
+            .encode(
+                x=alt.X(col_x, title=col_x),
+                y=alt.Y(col_y, title=col_y),
+                color=alt.Color("key:N",
+                                scale=alt.Scale(domain=domain, range=colors),
+                                legend=alt.Legend(title="Leyenda")),
+                tooltip=[col_x, col_y]
+            )
         )
-        line = alt.Chart(grid).mark_line().encode(x=col_x, y=col_y)
+        line = (
+            alt.Chart(grid)
+            .transform_calculate(key="'Línea de regresión'")
+            .mark_line()
+            .encode(
+                x=col_x, y=col_y,
+                color=alt.Color("key:N",
+                                scale=alt.Scale(domain=domain, range=colors),
+                                legend=alt.Legend(title="Leyenda"))
+            )
+        )
         st.altair_chart(scatter + line, use_container_width=True)
 
-#Prediccion
 if "model" in st.session_state:
     st.write("Predicción con valor X")
     x_new = st.number_input(f"Valor para {st.session_state.col_x}:", value=0.0)
@@ -76,7 +91,6 @@ if "model" in st.session_state:
         pred = float(m.predict([[x_new]])[0])
         st.write(f"Predicción de {col_y}: **{pred:.4f}**")
 
-        # Punto nuevo
         new_point = pd.DataFrame({col_x: [x_new], col_y: [pred]})
 
         domain = ["Datos reales", "Línea de regresión", "Predicción"]
@@ -93,7 +107,6 @@ if "model" in st.session_state:
                                 legend=alt.Legend(title="Leyenda"))
             )
         )
-
         line = (
             alt.Chart(st.session_state.grid)
             .transform_calculate(key="'Línea de regresión'")
@@ -105,7 +118,6 @@ if "model" in st.session_state:
                                 legend=alt.Legend(title="Leyenda"))
             )
         )
-
         dot = (
             alt.Chart(new_point)
             .transform_calculate(key="'Predicción'")
@@ -118,7 +130,6 @@ if "model" in st.session_state:
                 tooltip=[col_x, col_y]
             )
         )
-
         st.altair_chart(scatter + line + dot, use_container_width=True)
 else:
     st.info("Sube un CSV, selecciona columnas y entrena el modelo.")
