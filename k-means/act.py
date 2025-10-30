@@ -11,13 +11,17 @@ st.title("K-Means")
 # --- Cargar datos ---
 uploaded_file = st.file_uploader("Sube un archivo CSV (opcional)", type=["csv"])
 
+# Obtener la ruta absoluta del archivo clientes.csv (en la misma carpeta del script)
+script_dir = os.path.dirname(__file__)
+csv_path = os.path.join(script_dir, "clientes.csv")
+
 with st.spinner("Cargando datos..."):
     time.sleep(1)
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         st.subheader("Vista previa de los datos originales (archivo subido)")
-    elif os.path.exists("clientes.csv"):
-        df = pd.read_csv("clientes.csv")
+    elif os.path.exists(csv_path):
+        df = pd.read_csv(csv_path)
         st.subheader("Vista previa de los datos originales (archivo por defecto)")
     else:
         st.error("No se encontró 'clientes.csv' y no se subió ningún archivo.")
