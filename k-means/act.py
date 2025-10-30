@@ -76,7 +76,11 @@ st.write(f"Inercia: {kmeans.inertia_:.2f}")
 # --- Graficar clusters ---
 st.subheader("Visualización")
 fig_clusters, ax2 = plt.subplots(figsize=(6, 5), dpi=100)
-colores = ["red", "blue", "orange", "green", "purple", "pink", "brown"]
+colores = [
+    "red", "blue", "orange", "green", "purple", "pink", "brown",
+    "gray", "cyan", "olive", "navy", "magenta", "lime", "teal"
+]
+
 
 for cluster in range(kmeans.n_clusters):
     ax2.scatter(df_scaled[df_scaled["cluster"] == cluster]["Saldo"],
