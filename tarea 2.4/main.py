@@ -75,103 +75,129 @@ if uploaded_file is not None:
         if X.shape[0] < k:
             st.error(f"No hay suficientes filas para {k} clusters. Reduce el valor de k.")
         else:
-            # Aplicar parámetros seleccionados
-            kmeans = KMeans(
-                n_clusters=k,
-                init=init,
-                max_iter=max_iter,
-                n_init=n_init,
-                random_state=random_state
-            )
-
-            kmeans.fit(X)
-            data['Cluster'] = kmeans.labels_
-
-            # --- PCA ---
-            if X.shape[1] < n_components:
-                st.warning("No hay suficientes columnas para la cantidad de componentes PCA seleccionada.")
-                n_components = X.shape[1]
-
-            pca = PCA(n_components=n_components)
-            X_pca = pca.fit_transform(X)
-            pca_cols = [f'PCA{i+1}' for i in range(n_components)]
-            pca_df = pd.DataFrame(X_pca, columns=pca_cols)
-            pca_df['Cluster'] = data['Cluster']
-
-            # --- Visualización antes del clustering ---
-            st.subheader("Distribución original (antes de K-Means)")
-            if n_components == 2:
-                fig_before = px.scatter(
-                    pca_df,
-                    x='PCA1',
-                    y='PCA2',
-                    title="Datos originales proyectados con PCA (sin agrupar)",
-                    color_discrete_sequence=["gray"]
+            # --- Cálculo con indicador de carga ---
+            with st.spinner("Calculando K-Means..."):
+                kmeans = KMeans(
+                    n_clusters=k,
+                    init=init,
+                    max_iter=max_iter,
+                    n_init=n_init,
+                    random_state=random_state
                 )
-            else:
-                fig_before = px.scatter_3d(
-                    pca_df,
-                    x='PCA1',
-                    y='PCA2',
-                    z='PCA3',
-                    title="Datos originales proyectados con PCA (sin agrupar)",
-                    color_discrete_sequence=["gray"]
-                )
-            st.plotly_chart(fig_before, use_container_width=True)
+                kmeans.fit(X)
+                data['Cluster'] = kmeans.labels_
 
-            # --- Visualización después del clustering ---
-            st.subheader(f"Datos agrupados con K-Means (k = {k})")
-            if n_components == 2:
-                fig_after = px.scatter(
-                    pca_df,
-                    x='PCA1',
-                    y='PCA2',
-                    color=pca_df['Cluster'].astype(str),
-                    title="Clusters visualizados en 2D con PCA",
-                    color_discrete_sequence=px.colors.qualitative.Vivid
-                )
-            else:
-                fig_after = px.scatter_3d(
-                    pca_df,
-                    x='PCA1',
-                    y='PCA2',
-                    z='PCA3',
-                    color=pca_df['Cluster'].astype(str),
-                    title="Clusters visualizados en 3D con PCA",
-                    color_discrete_sequence=px.colors.qualitative.Vivid
-                )
-            st.plotly_chart(fig_after, use_container_width=True)
+            # --- PCA con manejo de errores ---
+            try:
+                if X.shape[1] < n_components:
+                    st.warning(
+                        f"Solo hay {X.shape[1]} columnas numéricas seleccionadas, "
+                        f"por lo tanto se usará PCA con {X.shape[1]} componente(s)."
+                    )
+                    n_components = X.shape[1]
 
-            # --- Centroides ---
-            st.subheader("Centroides de los clusters (en espacio PCA)")
-            centroides_pca = pd.DataFrame(pca.transform(kmeans.cluster_centers_), columns=pca_cols)
-            st.dataframe(centroides_pca)
+                with st.spinner("Calculando y aplicando PCA..."):
+                    pca = PCA(n_components=n_components)
+                    X_pca = pca.fit_transform(X)
+
+                pca_cols = [f'PCA{i+1}' for i in range(n_components)]
+                pca_df = pd.DataFrame(X_pca, columns=pca_cols)
+                pca_df['Cluster'] = data['Cluster']
+
+                # Mostrar varianza explicada
+                explained_var = pca.explained_variance_ratio_ * 100
+                var_text = " | ".join([f"PCA{i+1}: {v:.2f}%" for i, v in enumerate(explained_var)])
+                st.info(f"Varianza explicada por componente: {var_text}")
+
+                # --- Visualización antes del clustering ---
+                with st.spinner("Generando gráfico: Distribución original (antes de K-Means)..."):
+                    st.subheader("Distribución original (antes de K-Means)")
+                    if n_components == 2:
+                        fig_before = px.scatter(
+                            pca_df,
+                            x='PCA1',
+                            y='PCA2',
+                            title="Datos originales proyectados con PCA (sin agrupar)",
+                            color_discrete_sequence=["gray"]
+                        )
+                    elif n_components >= 3:
+                        fig_before = px.scatter_3d(
+                            pca_df,
+                            x='PCA1',
+                            y='PCA2',
+                            z='PCA3',
+                            title="Datos originales proyectados con PCA (sin agrupar)",
+                            color_discrete_sequence=["gray"]
+                        )
+                    else:
+                        fig_before = None
+
+                    if fig_before:
+                        st.plotly_chart(fig_before, use_container_width=True)
+
+                # --- Visualización después del clustering ---
+                with st.spinner("Generando gráfico: Datos agrupados con K-Means..."):
+                    st.subheader(f"Datos agrupados con K-Means (k = {k})")
+                    if n_components == 2:
+                        fig_after = px.scatter(
+                            pca_df,
+                            x='PCA1',
+                            y='PCA2',
+                            color=pca_df['Cluster'].astype(str),
+                            title="Clusters visualizados en 2D con PCA",
+                            color_discrete_sequence=px.colors.qualitative.Vivid
+                        )
+                    elif n_components >= 3:
+                        fig_after = px.scatter_3d(
+                            pca_df,
+                            x='PCA1',
+                            y='PCA2',
+                            z='PCA3',
+                            color=pca_df['Cluster'].astype(str),
+                            title="Clusters visualizados en 3D con PCA",
+                            color_discrete_sequence=px.colors.qualitative.Vivid
+                        )
+                    else:
+                        fig_after = None
+
+                    if fig_after:
+                        st.plotly_chart(fig_after, use_container_width=True)
+
+                # --- Centroides ---
+                st.subheader("Centroides de los clusters (en espacio PCA)")
+                with st.spinner("Calculando centroides..."):
+                    centroides_pca = pd.DataFrame(pca.transform(kmeans.cluster_centers_), columns=pca_cols)
+                    st.dataframe(centroides_pca)
+
+            except Exception as e:
+                st.error(f"Error al realizar PCA o graficar: {e}")
 
             # --- Método del Codo ---
             st.subheader("Método del Codo (Elbow Method)")
             if st.button("Calcular número óptimo de clusters"):
-                inertias = []
-                K = range(1, 11)
-                progress = st.progress(0)
-                for i, k_val in enumerate(K):
-                    km = KMeans(
-                        n_clusters=k_val,
-                        init=init,
-                        max_iter=max_iter,
-                        n_init=n_init,
-                        random_state=random_state
-                    )
-                    km.fit(X)
-                    inertias.append(km.inertia_)
-                    progress.progress((i + 1) / len(K))
+                with st.spinner("Calculando método del codo..."):
+                    inertias = []
+                    K = range(1, 11)
+                    progress = st.progress(0)
+                    for i, k_val in enumerate(K):
+                        km = KMeans(
+                            n_clusters=k_val,
+                            init=init,
+                            max_iter=max_iter,
+                            n_init=n_init,
+                            random_state=random_state
+                        )
+                        km.fit(X)
+                        inertias.append(km.inertia_)
+                        progress.progress((i + 1) / len(K))
 
-                fig2, ax2 = plt.subplots(figsize=(8, 6))
-                plt.plot(K, inertias, 'bo-')
-                plt.title('Método del Codo')
-                plt.xlabel('Número de Clusters (k)')
-                plt.ylabel('Inercia (SSE)')
-                plt.grid(True)
-                st.pyplot(fig2)
+                    fig2, ax2 = plt.subplots(figsize=(8, 6))
+                    plt.plot(K, inertias, 'bo-')
+                    plt.title('Método del Codo')
+                    plt.xlabel('Número de Clusters (k)')
+                    plt.ylabel('Inercia (SSE)')
+                    plt.grid(True)
+                    st.pyplot(fig2)
 
             # --- Descarga de resultados ---
             st.subheader("Descargar datos con clusters asignados")
