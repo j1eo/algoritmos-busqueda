@@ -1,5 +1,6 @@
 import streamlit as st
 import collections
+import time
 
 # ------------------------------
 # BFS para encontrar un camino
@@ -93,11 +94,19 @@ st.subheader("Laberinto actual:")
 render_maze(MAZE)
 
 if solve_button:
+    start_time = time.time()  
+
     if algorithm == "BFS":
         path = solve_maze_bfs(MAZE, START, END)
-        if path:
-            st.success("¡Camino encontrado con BFS!")
-            render_maze(MAZE, path)
-            st.write(f"Longitud del camino: {len(path)} pasos")
-        else:
-            st.error("No se encontró un camino.")
+
+    end_time = time.time()    
+    exec_time = (end_time - start_time) * 1000   # ms
+
+    if path:
+        st.success("¡Camino encontrado con BFS!")
+        render_maze(MAZE, path)
+        st.write(f"Longitud del camino: {len(path)} pasos")
+        st.write(f"Tiempo de ejecución: **{exec_time:.4f} ms**")
+    else:
+        st.error("No se encontró un camino.")
+        st.write(f"Tiempo de ejecución: **{exec_time:.4f} ms**")
